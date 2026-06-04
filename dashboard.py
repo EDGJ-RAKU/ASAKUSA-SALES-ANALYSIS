@@ -21,7 +21,6 @@ st.set_page_config(
 )
 
 st.title("Hotel Performance Dashboard")
-st.success("VERSION TEST - OTA FIX - 2026-05-11")
 
 # =====================================================
 # LOAD DATA
@@ -30,18 +29,48 @@ st.success("VERSION TEST - OTA FIX - 2026-05-11")
 con = duckdb.connect(str(DB_FILE))
 
 monthly_kpis = con.execute("""
+
     SELECT *
+
     FROM monthly_kpis
+
     ORDER BY month
+
 """).fetchdf()
 
 ota_sales = con.execute("""
+
     SELECT *
+
     FROM monthly_ota_sales
+
     ORDER BY month, channel
+
 """).fetchdf()
 
 con.close()
+
+# ==========================================
+
+# DEBUG OTA DATA
+
+# ==========================================
+
+st.subheader("DEBUG OTA TOTALS")
+
+debug_ota = (
+
+    ota_sales
+
+    .groupby("channel", as_index=False)["sales"]
+
+    .sum()
+
+    .sort_values("sales", ascending=False)
+
+)
+
+st.dataframe(debug_ota)
 
 
 # =====================================================
