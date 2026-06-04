@@ -232,27 +232,59 @@ def build_reservations(con):
 
     all_rows = []
 
+    def clean_header(x):
+
+        if pd.isna(x):
+
+            return ""
+
+        return str(x).strip().replace("\n", "").replace(" ", "")
+
     for sheet in xl.sheet_names:
 
         if "予約一覧表" not in sheet:
 
             continue
 
-        month = extract_month_from_sheet(sheet)
-
         print(f"Building reservations from: {sheet}")
 
-        df = pd.read_excel(
+        raw = pd.read_excel(
 
             EXCEL_FILE,
 
             sheet_name=sheet,
 
-            header=1,
+            header=None,
 
             dtype=str
 
         )
+
+        # Find the header row by looking for 予約番号 and チェックイン日
+
+        header_row = None
+
+        for i in range(min(10, len(raw))):
+
+            row_values = [clean_header(v) for v in raw.iloc[i].tolist()]
+
+            if "予約番号" in row_values and "チェックイン日" in row_values:
+
+                header_row = i
+
+                break
+
+        if header_row is None:
+
+            print(f"WARNING: Could not find reservation header in sheet: {sheet}")
+
+            continue
+
+        headers = [clean_header(v) for v in raw.iloc[header_row].tolist()]
+
+        df = raw.iloc[header_row + 1:].copy()
+
+        df.columns = headers
 
         df = df.dropna(how="all")
 
@@ -284,7 +316,7 @@ def build_reservations(con):
 
             "予約合計額": "gross_booking_amount",
 
-            "OTA サービス料": "ota_service_fee",
+            "OTAサービス料": "ota_service_fee",
 
             "受取金": "received_amount",
 
@@ -292,7 +324,7 @@ def build_reservations(con):
 
             "クレジットカード手数料": "card_fee",
 
-            "サイド別銀行\n入金小計": "site_bank_deposit",
+            "サイド別銀行入金小計": "site_bank_deposit",
 
             "銀行入金小計": "bank_deposit",
 
@@ -307,6 +339,16 @@ def build_reservations(con):
         }
 
         df = df.rename(columns=rename_map)
+
+        if "checkin_date" not in df.columns:
+
+            print(f"WARNING: checkin_date missing after rename in sheet: {sheet}")
+
+            print("Columns found:")
+
+            print(df.columns.tolist())
+
+            continue
 
         keep_cols = [
 
@@ -362,10 +404,6 @@ def build_reservations(con):
 
         df = df[existing_cols].copy()
 
-        df["source_sheet"] = sheet
-
-        df["month"] = month
-
         for col in [
 
             "gross_booking_amount",
@@ -411,6 +449,14 @@ def build_reservations(con):
             df["country_region"] = df["country_region"].fillna("Unknown")
 
             df["country_region"] = df["country_region"].replace("", "Unknown")
+
+        else:
+
+            df["country_region"] = "Unknown"
+
+        df["source_sheet"] = sheet
+
+        df["month"] = df["checkin_date"].dt.strftime("%Y-%m")
 
         all_rows.append(df)
 
