@@ -53,7 +53,22 @@ ota_sales["sales_share"] = pd.to_numeric(ota_sales["sales_share"], errors="coerc
 monthly_kpis["occupancy_pct"] = monthly_kpis["occupancy_rate"] * 100
 monthly_kpis["achievement_pct"] = monthly_kpis["achievement_rate"] * 100
 
-today_cutoff = pd.Timestamp("2026-03-31")
+latest_known_month = monthly_kpis.loc[
+    monthly_kpis["sales"].fillna(0) > 0,
+    "month_date"
+].max()
+
+monthly_kpis = monthly_kpis[
+    monthly_kpis["month_date"] <= latest_known_month
+].copy()
+
+ota_sales = ota_sales[
+    ota_sales["month_date"] <= latest_known_month
+].copy()
+
+month_order = monthly_kpis["month_label"].dropna().tolist()
+
+today_cutoff = latest_known_month
 
 monthly_kpis["period_type"] = monthly_kpis["month_date"].apply(
     lambda x: "Historical" if x <= today_cutoff else "Future / Forecast"
