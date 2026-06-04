@@ -227,245 +227,171 @@ def extract_month_from_sheet(sheet_name: str):
     return f"{year}-{int(month):02d}"
 
 def build_reservations(con):
-
     xl = pd.ExcelFile(EXCEL_FILE)
-
     all_rows = []
 
     def clean_header(x):
-
         if pd.isna(x):
-
             return ""
-
         return str(x).strip().replace("\n", "").replace(" ", "")
 
     for sheet in xl.sheet_names:
-
         if "予約一覧表" not in sheet:
-
             continue
 
         print(f"Building reservations from: {sheet}")
 
         raw = pd.read_excel(
-
             EXCEL_FILE,
-
             sheet_name=sheet,
-
             header=None,
-
             dtype=str
-
         )
-
-        # Find the header row by looking for 予約番号 and チェックイン日
 
         header_row = None
 
         for i in range(min(10, len(raw))):
-
             row_values = [clean_header(v) for v in raw.iloc[i].tolist()]
 
-            if "予約番号" in row_values and "チェックイン日" in row_values:
-
+            if "チェックイン日" in row_values and "チェックアウト日" in row_values:
                 header_row = i
-
                 break
 
         if header_row is None:
-
             print(f"WARNING: Could not find reservation header in sheet: {sheet}")
-
             continue
 
         headers = [clean_header(v) for v in raw.iloc[header_row].tolist()]
 
         df = raw.iloc[header_row + 1:].copy()
-
         df.columns = headers
-
         df = df.dropna(how="all")
 
         rename_map = {
-
             "予約番号": "booking_id",
-
             "チェックイン日": "checkin_date",
-
             "チェックアウト日": "checkout_date",
-
             "予約日": "booking_date",
-
+            "申込日": "booking_date",
             "泊数": "nights",
 
             "予約サイト": "channel",
+            "予約サイト名称": "channel",
 
             "部屋タイプ名称": "room_type",
-
             "室数": "rooms",
 
             "ゲスト名": "guest_name",
+            "宿泊者氏名": "guest_name",
 
             "国・地域": "country_region",
 
             "大人": "adults",
+            "大人人数": "adults",
+            "大人人数計": "adults",
 
             "子供": "children",
+            "子供人数": "children",
 
             "予約合計額": "gross_booking_amount",
-
             "OTAサービス料": "ota_service_fee",
-
-            "受取金": "received_amount",
-
             "サービス料": "service_fee",
-
             "クレジットカード手数料": "card_fee",
-
             "サイド別銀行入金小計": "site_bank_deposit",
-
+            "サイト別銀行入金小計": "site_bank_deposit",
             "銀行入金小計": "bank_deposit",
-
+            "受取金": "received_amount",
             "入金日": "deposit_date",
-
             "ポイント割引額": "points_discount",
-
+            "ポイント額": "points_discount",
             "決済方法": "payment_method",
-
             "泊延べ日数": "guest_nights",
-
+            "宿泊延べ日数": "guest_nights",
         }
 
         df = df.rename(columns=rename_map)
 
         if "checkin_date" not in df.columns:
-
             print(f"WARNING: checkin_date missing after rename in sheet: {sheet}")
+            continue
 
-            print("Columns found:")
-
-            print(df.columns.tolist())
-
+        if "country_region" not in df.columns:
+            print(f"INFO: No country_region column in sheet: {sheet}; skipping nationality analysis for this sheet.")
             continue
 
         keep_cols = [
-
             "booking_id",
-
             "checkin_date",
-
             "checkout_date",
-
             "booking_date",
-
             "nights",
-
             "channel",
-
             "room_type",
-
             "rooms",
-
             "guest_name",
-
             "country_region",
-
             "adults",
-
             "children",
-
             "gross_booking_amount",
-
             "ota_service_fee",
-
             "received_amount",
-
             "service_fee",
-
             "card_fee",
-
             "site_bank_deposit",
-
             "bank_deposit",
-
             "deposit_date",
-
             "points_discount",
-
             "payment_method",
-
             "guest_nights",
-
         ]
 
         existing_cols = [col for col in keep_cols if col in df.columns]
-
         df = df[existing_cols].copy()
 
+        # If received_amount does not exist, use bank_deposit or gross amount as fallback
+        if "received_amount" not in df.columns:
+            if "bank_deposit" in df.columns:
+                df["received_amount"] = df["bank_deposit"]
+            elif "site_bank_deposit" in df.columns:
+                df["received_amount"] = df["site_bank_deposit"]
+            elif "gross_booking_amount" in df.columns:
+                df["received_amount"] = df["gross_booking_amount"]
+            else:
+                df["received_amount"] = 0
+
         for col in [
-
             "gross_booking_amount",
-
             "ota_service_fee",
-
             "received_amount",
-
             "service_fee",
-
             "card_fee",
-
             "site_bank_deposit",
-
             "bank_deposit",
-
             "points_discount",
-
             "nights",
-
             "rooms",
-
             "adults",
-
             "children",
-
             "guest_nights",
-
         ]:
-
             if col in df.columns:
-
                 df[col] = df[col].apply(clean_number)
 
         for col in ["checkin_date", "checkout_date", "booking_date", "deposit_date"]:
-
             if col in df.columns:
-
                 df[col] = pd.to_datetime(df[col], errors="coerce")
 
-        if "country_region" in df.columns:
-
-            df["country_region"] = df["country_region"].fillna("Unknown")
-
-            df["country_region"] = df["country_region"].replace("", "Unknown")
-
-        else:
-
-            df["country_region"] = "Unknown"
+        df["country_region"] = df["country_region"].fillna("Unknown")
+        df["country_region"] = df["country_region"].replace("", "Unknown")
 
         df["source_sheet"] = sheet
-
         df["month"] = df["checkin_date"].dt.strftime("%Y-%m")
 
         all_rows.append(df)
 
     if all_rows:
-
         reservations = pd.concat(all_rows, ignore_index=True)
-
     else:
-
         reservations = pd.DataFrame()
 
     save_clean_table(con, "reservations", reservations)
