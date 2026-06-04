@@ -8,7 +8,7 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "Data"
 
-EXCEL_FILE = DATA_DIR / "2025_10_2026_04_data.xlsx"
+EXCEL_FILE = DATA_DIR / "2025_10_2026_03_data.xlsx"
 DB_FILE = BASE_DIR / "hotel_data.duckdb"
 
 
@@ -45,30 +45,19 @@ def save_raw_table(con, table_name: str, df: pd.DataFrame):
 
     con.execute(f'DROP TABLE IF EXISTS "{table_name}"')
     con.register("df_view", df)
-    con.execute(f'''
-        CREATE TABLE "{table_name}" AS
-        SELECT * FROM df_view
-    ''')
+    con.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM df_view')
     con.unregister("df_view")
 
 
 def save_clean_table(con, table_name: str, df: pd.DataFrame):
     con.execute(f'DROP TABLE IF EXISTS "{table_name}"')
     con.register("df_view", df)
-    con.execute(f'''
-        CREATE TABLE "{table_name}" AS
-        SELECT * FROM df_view
-    ''')
+    con.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM df_view')
     con.unregister("df_view")
 
 
 def build_monthly_kpis(con):
-    df = pd.read_excel(
-        EXCEL_FILE,
-        sheet_name="総表",
-        header=None,
-        dtype=str
-    )
+    df = pd.read_excel(EXCEL_FILE, sheet_name="総表", header=None, dtype=str)
 
     metric_rows = {
         "sales": 3,
@@ -88,6 +77,7 @@ def build_monthly_kpis(con):
         "avg_stay_nights": 17,
     }
 
+    # Oct 2025 → Sep 2026
     month_cols = [8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41]
 
     rows = []
@@ -98,9 +88,7 @@ def build_monthly_kpis(con):
         if pd.isna(month_value):
             continue
 
-        record = {
-            "month": str(month_value)[:7]
-        }
+        record = {"month": str(month_value)[:7]}
 
         for metric, row in metric_rows.items():
             try:
@@ -114,12 +102,7 @@ def build_monthly_kpis(con):
 
 
 def build_ota_sales(con):
-    df = pd.read_excel(
-        EXCEL_FILE,
-        sheet_name="総表",
-        header=None,
-        dtype=str
-    )
+    df = pd.read_excel(EXCEL_FILE, sheet_name="総表", header=None, dtype=str)
 
     ota_rows = {
         "Airbnb": 20,
@@ -132,7 +115,10 @@ def build_ota_sales(con):
         "Direct / Own": 27,
     }
 
-    month_cols = [8, 11, 14, 17, 20, 23]
+    # Oct 2025 → Sep 2026
+    # If the source Excel has no OTA detail for future months,
+    # values will appear as 0 / blank.
+    month_cols = [8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41]
 
     rows = []
 
@@ -145,12 +131,21 @@ def build_ota_sales(con):
         month = str(month_value)[:7]
 
         for channel, row_num in ota_rows.items():
+            try:
+                sales = clean_number(df.iloc[row_num, col])
+                booking_count = clean_number(df.iloc[row_num, col + 1])
+                sales_share = clean_number(df.iloc[row_num, col + 2])
+            except Exception:
+                sales = None
+                booking_count = None
+                sales_share = None
+
             rows.append({
                 "month": month,
                 "channel": channel,
-                "sales": clean_number(df.iloc[row_num, col]),
-                "booking_count": clean_number(df.iloc[row_num, col + 1]),
-                "sales_share": clean_number(df.iloc[row_num, col + 2]),
+                "sales": sales,
+                "booking_count": booking_count,
+                "sales_share": sales_share,
             })
 
     save_clean_table(con, "monthly_ota_sales", pd.DataFrame(rows))
@@ -174,12 +169,7 @@ def import_excel_to_database():
     for sheet in xl.sheet_names:
         print(f"Importing sheet: {sheet}")
 
-        df = pd.read_excel(
-            EXCEL_FILE,
-            sheet_name=sheet,
-            header=None,
-            dtype=str
-        )
+        df = pd.read_excel(EXCEL_FILE, sheet_name=sheet, header=None, dtype=str)
 
         table_name = "raw_" + clean_table_name(sheet)
         save_raw_table(con, table_name, df)
