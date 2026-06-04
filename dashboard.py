@@ -117,7 +117,7 @@ ota_sales["share"] = (
 # DEFINE HISTORICAL VS FUTURE
 # =====================================================
 
-today_cutoff = pd.Timestamp("2026-03-31")
+today_cutoff = pd.Timestamp("2026-04-30")
 
 monthly_kpis["period_type"] = monthly_kpis["month_date"].apply(
     lambda x: "Historical"

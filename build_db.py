@@ -8,7 +8,7 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "Data"
 
-EXCEL_FILE = DATA_DIR / "2025_10_2026_03_data.xlsx"
+EXCEL_FILE = DATA_DIR / "2025_10_2026_04_data.xlsx"
 DB_FILE = BASE_DIR / "hotel_data.duckdb"
 
 
