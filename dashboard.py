@@ -425,102 +425,118 @@ ota_summary["share_pct"] = ota_summary["share_pct"].round(1)
 st.dataframe(ota_summary, width="stretch")
 
 # =====================================================
-
 # 5 COUNTRY / REGION
-
 # =====================================================
 
 st.header("5. Revenue by Client Country / Region")
 
 country_summary = (
-
     reservations_filtered
-
     .groupby("country_region", as_index=False)
-
     .agg(
-
         revenue=("received_amount", "sum"),
-
         gross_revenue=("gross_booking_amount", "sum"),
-
         guest_nights=("guest_nights", "sum"),
-
         bookings=("booking_id", "count")
-
     )
-
     .sort_values("revenue", ascending=False)
-
 )
 
 country_summary["share_pct"] = (
-
-    country_summary["revenue"] / country_summary["revenue"].sum() * 100
-
+    country_summary["revenue"] /
+    country_summary["revenue"].sum() * 100
 )
 
 country_summary["share_pct"] = country_summary["share_pct"].round(1)
 
-top_countries = country_summary.head(10)["country_region"].tolist()
-
-country_monthly = (
-
-    reservations_filtered[
-
-        reservations_filtered["country_region"].isin(top_countries)
-
-    ]
-
-    .groupby(["month_label", "country_region"], as_index=False)
-
-    .agg(revenue=("received_amount", "sum"))
-
+# Top 10 countries
+top_countries = (
+    country_summary
+    .head(10)["country_region"]
+    .tolist()
 )
 
+country_monthly = (
+    reservations_filtered[
+        reservations_filtered["country_region"].isin(top_countries)
+    ]
+    .groupby(
+        ["month_label", "country_region"],
+        as_index=False
+    )
+    .agg(
+        revenue=("received_amount", "sum")
+    )
+)
+
+# STACKED BAR CHART
 fig = px.bar(
-
     country_monthly,
-
     x="month_label",
-
     y="revenue",
-
     color="country_region",
-
-    barmode="group",
-
-    title="Monthly Revenue by Client Country / Region - Top 10",
-
+    title="Revenue Mix by Client Country / Region",
     category_orders={"month_label": month_order},
-
     labels={
-
         "month_label": "Month",
-
         "revenue": "Revenue (JPY)",
-
         "country_region": "Country / Region"
-
     }
+)
 
+fig.update_layout(
+    barmode="stack",
+    hovermode="x unified",
+    legend_title_text="Country / Region"
 )
 
 fig.update_yaxes(tickprefix="¥")
 
-fig.update_layout(hovermode="x unified", legend_title_text="Country / Region")
-
 st.plotly_chart(fig, width="stretch")
+
+# COUNTRY TABLE
 
 st.subheader("Country / Region Revenue Summary")
 
 display_country = country_summary.copy()
 
-display_country["revenue"] = display_country["revenue"].round(0)
+display_country["revenue"] = (
+    display_country["revenue"]
+    .round(0)
+)
 
-display_country["gross_revenue"] = display_country["gross_revenue"].round(0)
+display_country["gross_revenue"] = (
+    display_country["gross_revenue"]
+    .round(0)
+)
 
-display_country["guest_nights"] = display_country["guest_nights"].round(0)
+display_country["guest_nights"] = (
+    display_country["guest_nights"]
+    .round(0)
+)
+
+display_country = display_country[
+    [
+        "country_region",
+        "revenue",
+        "share_pct",
+        "guest_nights",
+        "bookings"
+    ]
+]
+
+display_country.columns = [
+    "Country / Region",
+    "Revenue",
+    "Share %",
+    "Guest Nights",
+    "Bookings"
+]
+
+st.dataframe(
+    display_country,
+    width="stretch"
+)
 
 st.dataframe(display_country, width="stretch")
 
