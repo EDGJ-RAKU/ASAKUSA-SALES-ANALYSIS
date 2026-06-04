@@ -50,27 +50,6 @@ ota_sales = con.execute("""
 
 con.close()
 
-# ==========================================
-
-# DEBUG OTA DATA
-
-# ==========================================
-
-st.subheader("DEBUG OTA TOTALS")
-
-debug_ota = (
-
-    ota_sales
-
-    .groupby("channel", as_index=False)["sales"]
-
-    .sum()
-
-    .sort_values("sales", ascending=False)
-
-)
-
-st.dataframe(debug_ota)
 
 
 # =====================================================
