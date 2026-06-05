@@ -415,10 +415,37 @@ def build_reservations(con):
 
         }
 
+        country_map = {
+            "アメリカ": "America",
+            "米国": "America",
+            "オーストラリア": "Australia",
+            "カナダ": "Canada",
+            "フランス": "France",
+            "イギリス": "United Kingdom",
+            "英国": "United Kingdom",
+            "台湾": "Taiwan",
+            "韓国": "South Korea",
+            "香港": "Hong Kong",
+            "中国": "China",
+            "シンガポール": "Singapore",
+            "フィリピン": "Philippines",
+            "タイ": "Thailand",
+            "日本": "Japan",
+            "イスラエル": "Israel",
+            "ロシア": "Russia",
+            "ポーランド": "Poland",
+            "マレーシア": "Malaysia",
+            "イタリア": "Italy",
+            "ドイツ": "Germany",
+            "ペルー": "Peru",
+            "オランダ": "Netherlands",
+            "ルクセンブルク": "Luxembourg",
+            "スペイン": "Spain",
+            "ブータン": "Bhutan",
+        }
+
         df["country_region"] = df["country_region"].fillna("Unknown")
-
         df["country_region"] = df["country_region"].replace("", "Unknown")
-
         df["country_region"] = df["country_region"].replace(country_map)
 
         df["source_sheet"] = sheet
