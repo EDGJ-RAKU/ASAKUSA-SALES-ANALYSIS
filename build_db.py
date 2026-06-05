@@ -381,8 +381,45 @@ def build_reservations(con):
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors="coerce")
 
+        country_map = {
+
+            "アメリカ": "America",
+
+            "米国": "America",
+
+            "オーストラリア": "Australia",
+
+            "カナダ": "Canada",
+
+            "フランス": "France",
+
+            "イギリス": "United Kingdom",
+
+            "英国": "United Kingdom",
+
+            "台湾": "Taiwan",
+
+            "韓国": "South Korea",
+
+            "香港": "Hong Kong",
+
+            "中国": "China",
+
+            "シンガポール": "Singapore",
+
+            "フィリピン": "Philippines",
+
+            "タイ": "Thailand",
+
+            "日本": "Japan",
+
+        }
+
         df["country_region"] = df["country_region"].fillna("Unknown")
+
         df["country_region"] = df["country_region"].replace("", "Unknown")
+
+        df["country_region"] = df["country_region"].replace(country_map)
 
         df["source_sheet"] = sheet
         df["month"] = df["checkin_date"].dt.strftime("%Y-%m")
